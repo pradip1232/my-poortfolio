@@ -23,6 +23,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { getFeaturedProjects } from "@/app/projects/projectData";
+import WorkingModal from "@/components/WorkingModal";
 
 // Get featured projects for home page (limit to 1 for preview)
 const featuredProjects = getFeaturedProjects(1);
@@ -73,6 +74,8 @@ const scrollAnimation = {
 export default function Home() {
   return (
     <div>
+      {/* modal working on this portfolio */}
+      <WorkingModal />
       {/* Section 1: Hero */}
       <Hero />
 

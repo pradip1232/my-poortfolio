@@ -156,7 +156,7 @@ export default function Contact() {
                         </Button>
                       </Link>
                       <Link
-                        href="https://linkedin.com"
+                        href="https://www.linkedin.com/in/pradipmourya-61a387218/"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
