@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getFeaturedProjects } from "@/app/projects/projectData";
 import WorkingModal from "@/components/WorkingModal";
+import aboutImg from '../app/assets/images/pic-removebg-preview (1).png';
 
 // Get featured projects for home page (limit to 1 for preview)
 const featuredProjects = getFeaturedProjects(1);
@@ -129,7 +130,7 @@ export default function Home() {
               }}
             >
               <Image
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=800&fit=crop"
+                src={aboutImg}
                 alt="Profile"
                 fill
                 className="object-cover"
