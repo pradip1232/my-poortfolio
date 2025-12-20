@@ -8,11 +8,28 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  console.log('[API Stats] GET /api/analytics/stats called');
+  console.log('[API Stats] Environment:', {
+    isVercel: !!process.env.VERCEL,
+    isNetlify: !!process.env.NETLIFY,
+    nodeEnv: process.env.NODE_ENV,
+  });
+
   try {
+    console.log('[API Stats] Cleaning up stale live visitors...');
     cleanupStaleLiveVisitors();
     
+    console.log('[API Stats] Reading visitor data...');
     const visitorData = readVisitorData();
+    console.log('[API Stats] Visitor data loaded:', {
+      totalVisitors: visitorData.totalVisitors,
+      dailyCount: Object.keys(visitorData.dailyVisitors).length,
+      hourlyDataPoints: visitorData.hourlyData.length,
+    });
+    
+    console.log('[API Stats] Reading live visitors...');
     const liveVisitors = readLiveVisitors();
+    console.log('[API Stats] Live visitors:', liveVisitors.length);
 
     // Process daily visitors data for bar chart
     const dailyData = Object.entries(visitorData.dailyVisitors)
@@ -22,6 +39,8 @@ export async function GET() {
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-30); // Last 30 days
+
+    console.log('[API Stats] Processed daily data:', dailyData.length, 'days');
 
     // Process hourly data for line chart
     const hourlyData = visitorData.hourlyData
@@ -36,6 +55,8 @@ export async function GET() {
       }))
       .slice(-100); // Last 100 data points
 
+    console.log('[API Stats] Processed hourly data:', hourlyData.length, 'points');
+
     // Process live visitor trend (last hour)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const liveTrendData = visitorData.hourlyData
@@ -49,18 +70,36 @@ export async function GET() {
         timestamp: item.timestamp,
       }));
 
-    return NextResponse.json({
+    console.log('[API Stats] Processed live trend data:', liveTrendData.length, 'points');
+
+    const response = {
       totalVisitors: visitorData.totalVisitors,
       liveVisitors: liveVisitors.length,
       dailyData,
       hourlyData,
       liveTrendData,
       lastUpdated: visitorData.lastUpdated,
+    };
+
+    console.log('[API Stats] Returning response:', {
+      totalVisitors: response.totalVisitors,
+      liveVisitors: response.liveVisitors,
+      dailyDataCount: response.dailyData.length,
+      hourlyDataCount: response.hourlyData.length,
     });
+
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Error fetching analytics stats:', error);
+    console.error('[API Stats] Error fetching analytics stats:', error);
+    console.error('[API Stats] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack',
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch analytics' },
+      { 
+        error: 'Failed to fetch analytics',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }

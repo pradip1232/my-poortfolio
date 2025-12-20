@@ -10,6 +10,12 @@ const nextConfig = {
       },
     ],
   },
+  // Ensure API routes work in serverless environments
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
 }
 
 module.exports = nextConfig

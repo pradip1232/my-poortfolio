@@ -10,15 +10,26 @@ import { cookies } from 'next/headers';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  console.log('[API Live] GET /api/analytics/live called');
+  console.log('[API Live] Environment:', {
+    isVercel: !!process.env.VERCEL,
+    isNetlify: !!process.env.NETLIFY,
+    nodeEnv: process.env.NODE_ENV,
+  });
+
   try {
     const cookieStore = await cookies();
     const visitorCookie = cookieStore.get('visitor_session');
     
+    console.log('[API Live] Visitor cookie exists?', !!visitorCookie?.value);
+    
     if (!visitorCookie?.value) {
+      console.log('[API Live] No session cookie, returning 400');
       return new Response('Session required', { status: 400 });
     }
 
     const sessionId = visitorCookie.value;
+    console.log('[API Live] Session ID:', sessionId.substring(0, 20) + '...');
 
     // Create a readable stream for SSE
     const stream = new ReadableStream({
@@ -26,13 +37,17 @@ export async function GET(request: NextRequest) {
         let interval: NodeJS.Timeout | null = null;
         
         try {
+          console.log('[API Live] Setting up SSE stream for session:', sessionId.substring(0, 20) + '...');
+          
           // Add visitor to live list
+          console.log('[API Live] Adding visitor to live list...');
           addLiveVisitor(sessionId);
           cleanupStaleLiveVisitors();
 
           // Send initial data
           const liveCount = readLiveVisitors().length;
           const data = JSON.stringify({ liveVisitors: liveCount });
+          console.log('[API Live] Sending initial data. Live visitors:', liveCount);
           controller.enqueue(`data: ${data}\n\n`);
 
           // Set up interval to send updates
@@ -41,9 +56,10 @@ export async function GET(request: NextRequest) {
               cleanupStaleLiveVisitors();
               const liveCount = readLiveVisitors().length;
               const data = JSON.stringify({ liveVisitors: liveCount });
+              console.log('[API Live] Sending update. Live visitors:', liveCount);
               controller.enqueue(`data: ${data}\n\n`);
             } catch (error) {
-              console.error('Error in SSE interval:', error);
+              console.error('[API Live] Error in SSE interval:', error);
               if (interval) clearInterval(interval);
               controller.close();
             }
@@ -51,6 +67,7 @@ export async function GET(request: NextRequest) {
 
           // Clean up on client disconnect
           request.signal.addEventListener('abort', () => {
+            console.log('[API Live] Client disconnected, cleaning up...');
             if (interval) clearInterval(interval);
             removeLiveVisitor(sessionId);
             try {
@@ -60,7 +77,7 @@ export async function GET(request: NextRequest) {
             }
           });
         } catch (error) {
-          console.error('Error in SSE stream:', error);
+          console.error('[API Live] Error in SSE stream:', error);
           if (interval) clearInterval(interval);
           removeLiveVisitor(sessionId);
           controller.close();
@@ -77,7 +94,11 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error setting up SSE:', error);
+    console.error('[API Live] Error setting up SSE:', error);
+    console.error('[API Live] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack',
+    });
     return new Response('Internal Server Error', { status: 500 });
   }
 }

@@ -191,6 +191,29 @@ To test the analytics:
 4. Refresh to see total visitors increment
 5. Check charts update in real-time
 
+## Serverless Deployment (Netlify/Vercel)
+
+### Key Changes for Serverless
+- **In-Memory Storage**: Primary storage uses in-memory variables that persist during function execution
+- **File System Fallback**: Attempts to use file system for localhost, gracefully falls back to memory in serverless
+- **Auto-Detection**: Automatically detects serverless environment (Netlify, Vercel, AWS Lambda)
+- **No Persistence Between Deploys**: Data resets on each deployment (by design for serverless)
+
+### How It Works
+1. **Localhost**: Uses file system storage in `/data` directory
+2. **Serverless**: Uses in-memory storage (data persists during function lifetime)
+3. **Hybrid**: Tries file system first, falls back to memory if unavailable
+
+### Debugging
+All functions include extensive `console.log` statements prefixed with:
+- `[Analytics]` - Storage layer
+- `[API Track]` - Visitor tracking endpoint
+- `[API Stats]` - Statistics endpoint
+- `[API Live]` - Live visitor SSE endpoint
+- `[Analytics Page]` - Frontend component
+
+Check browser console and server logs for debugging information.
+
 ## Notes
 
 - Data directory (`/data`) is gitignored
@@ -198,4 +221,6 @@ To test the analytics:
 - No impact on existing pages or functionality
 - Uses Next.js App Router conventions
 - Server-side storage (not client-side)
+- **Serverless Compatible**: Works on Netlify, Vercel, and other serverless platforms
+- **In-Memory Storage**: Data persists during function execution but resets on deploy
 

@@ -31,13 +31,17 @@ export default function AnalyticsPage() {
 
   // Track visitor on page load
   useEffect(() => {
+    console.log('[Analytics Page] Component mounted, tracking visitor...');
     const trackVisitor = async () => {
       try {
-        await fetch("/api/analytics/track", {
+        console.log('[Analytics Page] Calling POST /api/analytics/track');
+        const response = await fetch("/api/analytics/track", {
           method: "POST",
         });
+        const result = await response.json();
+        console.log('[Analytics Page] Track response:', result);
       } catch (err) {
-        console.error("Error tracking visitor:", err);
+        console.error("[Analytics Page] Error tracking visitor:", err);
       }
     };
 
@@ -46,14 +50,31 @@ export default function AnalyticsPage() {
 
   // Fetch initial stats
   useEffect(() => {
+    console.log('[Analytics Page] Fetching initial stats...');
     const fetchStats = async () => {
       try {
+        console.log('[Analytics Page] Calling GET /api/analytics/stats');
         const response = await fetch("/api/analytics/stats");
-        if (!response.ok) throw new Error("Failed to fetch stats");
+        console.log('[Analytics Page] Stats response status:', response.status, response.ok);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[Analytics Page] Stats response error:', errorText);
+          throw new Error(`Failed to fetch stats: ${response.status} ${errorText}`);
+        }
+        
         const stats = await response.json();
+        console.log('[Analytics Page] Stats received:', {
+          totalVisitors: stats.totalVisitors,
+          liveVisitors: stats.liveVisitors,
+          dailyDataCount: stats.dailyData?.length || 0,
+          hourlyDataCount: stats.hourlyData?.length || 0,
+        });
+        
         setData(stats);
         setLoading(false);
       } catch (err) {
+        console.error("[Analytics Page] Error fetching stats:", err);
         setError(err instanceof Error ? err.message : "Failed to load analytics");
         setLoading(false);
       }
@@ -64,13 +85,24 @@ export default function AnalyticsPage() {
 
   // Set up SSE for live visitor updates
   useEffect(() => {
-    if (!data) return;
+    if (!data) {
+      console.log('[Analytics Page] No data yet, skipping SSE setup');
+      return;
+    }
 
+    console.log('[Analytics Page] Setting up SSE connection...');
     const eventSource = new EventSource("/api/analytics/live");
+
+    eventSource.onopen = () => {
+      console.log('[Analytics Page] SSE connection opened');
+    };
 
     eventSource.onmessage = (event) => {
       try {
+        console.log('[Analytics Page] SSE message received:', event.data);
         const { liveVisitors } = JSON.parse(event.data);
+        console.log('[Analytics Page] Live visitors update:', liveVisitors);
+        
         setData((prev) => {
           if (!prev) return null;
           return {
@@ -91,26 +123,32 @@ export default function AnalyticsPage() {
           };
         });
       } catch (err) {
-        console.error("Error parsing SSE data:", err);
+        console.error("[Analytics Page] Error parsing SSE data:", err);
       }
     };
 
-    eventSource.onerror = () => {
+    eventSource.onerror = (error) => {
+      console.error("[Analytics Page] SSE error:", error);
+      console.log("[Analytics Page] Closing SSE connection due to error");
       eventSource.close();
     };
 
     return () => {
+      console.log('[Analytics Page] Cleaning up SSE connection');
       eventSource.close();
     };
   }, [data]);
 
   // Refresh stats periodically
   useEffect(() => {
+    console.log('[Analytics Page] Setting up periodic stats refresh (30s interval)');
     const interval = setInterval(async () => {
       try {
+        console.log('[Analytics Page] Periodic stats refresh...');
         const response = await fetch("/api/analytics/stats");
         if (response.ok) {
           const stats = await response.json();
+          console.log('[Analytics Page] Periodic stats update received');
           setData((prev) => {
             if (!prev) return stats;
             return {
@@ -118,13 +156,18 @@ export default function AnalyticsPage() {
               liveVisitors: prev.liveVisitors, // Preserve live count from SSE
             };
           });
+        } else {
+          console.warn('[Analytics Page] Periodic stats refresh failed:', response.status);
         }
       } catch (err) {
-        console.error("Error refreshing stats:", err);
+        console.error("[Analytics Page] Error refreshing stats:", err);
       }
     }, 30000); // Refresh every 30 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log('[Analytics Page] Cleaning up periodic refresh');
+      clearInterval(interval);
+    };
   }, []);
 
   if (loading) {
