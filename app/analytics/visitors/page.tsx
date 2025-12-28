@@ -70,159 +70,202 @@ interface AnalyticsData {
   lastUpdated: string;
 }
 
+// Mock data generator for static export
+function generateMockAnalyticsData(): AnalyticsData {
+  console.log('[Analytics] Generating mock analytics data for static export');
+  
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  
+  // Generate daily data for last 30 days
+  const dailyData = Array.from({ length: 30 }, (_, i) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() - (29 - i));
+    return {
+      date: date.toISOString().split('T')[0],
+      visitors: Math.floor(Math.random() * 100) + 20
+    };
+  });
+
+  // Generate hourly data for last 24 hours
+  const hourlyData = Array.from({ length: 24 }, (_, i) => {
+    const time = new Date(now);
+    time.setHours(time.getHours() - (23 - i), 0, 0, 0);
+    return {
+      timestamp: time.toISOString(),
+      visitors: Math.floor(Math.random() * 20) + 5,
+      date: time.toISOString().split('T')[0],
+      time: time.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })
+    };
+  });
+
+  // Generate live trend data for last 20 points
+  const liveTrendData = Array.from({ length: 20 }, (_, i) => {
+    const time = new Date(now);
+    time.setMinutes(time.getMinutes() - (19 - i) * 5);
+    return {
+      time: time.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      live: Math.floor(Math.random() * 15) + 1,
+      timestamp: time.toISOString()
+    };
+  });
+
+  // Generate country data
+  const countries = ['US', 'GB', 'CA', 'AU', 'DE', 'FR', 'IN', 'JP', 'BR', 'NL'];
+  const countryData = countries.map(country => ({
+    country,
+    visitors: Math.floor(Math.random() * 500) + 50
+  })).sort((a, b) => b.visitors - a.visitors);
+
+  const totalVisitors = dailyData.reduce((sum, day) => sum + day.visitors, 0);
+  const liveVisitors = Math.floor(Math.random() * 25) + 5;
+
+  return {
+    totalVisitors,
+    liveVisitors,
+    dailyData,
+    hourlyData,
+    liveTrendData,
+    countryData,
+    lastUpdated: now.toISOString()
+  };
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
-  // Track visitor on page load
+  // Prevent hydration mismatch
   useEffect(() => {
-    console.log('[Analytics Page] Component mounted, tracking visitor...');
-    const trackVisitor = async () => {
-      try {
-        console.log('[Analytics Page] Calling POST /api/analytics/track');
-        const response = await fetch("/api/analytics/track", {
-          method: "POST",
-        });
-        const result = await response.json();
-        console.log('[Analytics Page] Track response:', result);
-      } catch (err) {
-        console.error("[Analytics Page] Error tracking visitor:", err);
-      }
-    };
-
-    trackVisitor();
+    console.log('[Analytics Page] Component mounted on client');
+    setIsClient(true);
   }, []);
 
-  // Fetch initial stats
+  // Load analytics data
   useEffect(() => {
-    console.log('[Analytics Page] Fetching initial stats...');
-    const fetchStats = async () => {
+    if (!isClient) {
+      console.log('[Analytics Page] Waiting for client hydration...');
+      return;
+    }
+
+    console.log('[Analytics Page] Loading analytics data...');
+    
+    const loadData = async () => {
       try {
-        console.log('[Analytics Page] Calling GET /api/analytics/stats');
-        const response = await fetch("/api/analytics/stats");
-        console.log('[Analytics Page] Stats response status:', response.status, response.ok);
+        setLoading(true);
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[Analytics Page] Stats response error:', errorText);
-          throw new Error(`Failed to fetch stats: ${response.status} ${errorText}`);
+        // Check if we're in static export mode (no API routes)
+        const isStaticExport = typeof window !== 'undefined' && 
+          window.location.protocol === 'file:' || 
+          !window.location.origin.includes('localhost:');
+        
+        if (isStaticExport) {
+          console.log('[Analytics Page] Static export detected, using mock data');
+          // Use mock data for static export
+          const mockData = generateMockAnalyticsData();
+          setData(mockData);
+          setLoading(false);
+          return;
+        }
+
+        // Try to fetch from API routes (for development)
+        console.log('[Analytics Page] Attempting to fetch from API routes...');
+        
+        try {
+          // Track visitor
+          console.log('[Analytics Page] Tracking visitor...');
+          await fetch("/api/analytics/track", { method: "POST" });
+          
+          // Fetch stats
+          console.log('[Analytics Page] Fetching stats...');
+          const response = await fetch("/api/analytics/stats");
+          
+          if (!response.ok) {
+            throw new Error(`API not available: ${response.status}`);
+          }
+          
+          const stats = await response.json();
+          console.log('[Analytics Page] API data received:', stats);
+          setData(stats);
+          
+        } catch (apiError) {
+          console.log('[Analytics Page] API routes not available, using mock data');
+          console.log('[Analytics Page] API Error:', apiError);
+          
+          // Fallback to mock data
+          const mockData = generateMockAnalyticsData();
+          setData(mockData);
         }
         
-        const stats = await response.json();
-        console.log('[Analytics Page] Stats received:', {
-          totalVisitors: stats.totalVisitors,
-          liveVisitors: stats.liveVisitors,
-          dailyDataCount: stats.dailyData?.length || 0,
-          hourlyDataCount: stats.hourlyData?.length || 0,
-        });
-        
-        setData(stats);
         setLoading(false);
+        
       } catch (err) {
-        console.error("[Analytics Page] Error fetching stats:", err);
+        console.error("[Analytics Page] Error loading data:", err);
         setError(err instanceof Error ? err.message : "Failed to load analytics");
         setLoading(false);
       }
     };
 
-    fetchStats();
-  }, []);
+    loadData();
+  }, [isClient]);
 
-  // Set up SSE for live visitor updates
+  // Simulate live updates for mock data
   useEffect(() => {
-    if (!data) {
-      console.log('[Analytics Page] No data yet, skipping SSE setup');
-      return;
-    }
+    if (!data || !isClient) return;
 
-    console.log('[Analytics Page] Setting up SSE connection...');
-    const eventSource = new EventSource("/api/analytics/live");
-
-    eventSource.onopen = () => {
-      console.log('[Analytics Page] SSE connection opened');
-    };
-
-    eventSource.onmessage = (event) => {
-      try {
-        console.log('[Analytics Page] SSE message received:', event.data);
-        const { liveVisitors } = JSON.parse(event.data);
-        console.log('[Analytics Page] Live visitors update:', liveVisitors);
+    console.log('[Analytics Page] Setting up live data simulation...');
+    
+    const interval = setInterval(() => {
+      console.log('[Analytics Page] Simulating live visitor update...');
+      
+      setData(prev => {
+        if (!prev) return null;
         
-        setData((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            liveVisitors,
-            // Update live trend data
-            liveTrendData: [
-              ...prev.liveTrendData.slice(-19), // Keep last 19 points
-              {
-                time: new Date().toLocaleTimeString("en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                live: liveVisitors,
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          };
-        });
-      } catch (err) {
-        console.error("[Analytics Page] Error parsing SSE data:", err);
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      console.error("[Analytics Page] SSE error:", error);
-      console.log("[Analytics Page] Closing SSE connection due to error");
-      eventSource.close();
-    };
+        const newLiveVisitors = Math.max(1, prev.liveVisitors + (Math.random() > 0.5 ? 1 : -1));
+        
+        return {
+          ...prev,
+          liveVisitors: newLiveVisitors,
+          liveTrendData: [
+            ...prev.liveTrendData.slice(-19),
+            {
+              time: new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              live: newLiveVisitors,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+          lastUpdated: new Date().toISOString()
+        };
+      });
+    }, 10000); // Update every 10 seconds
 
     return () => {
-      console.log('[Analytics Page] Cleaning up SSE connection');
-      eventSource.close();
-    };
-  }, [data]);
-
-  // Refresh stats periodically
-  useEffect(() => {
-    console.log('[Analytics Page] Setting up periodic stats refresh (30s interval)');
-    const interval = setInterval(async () => {
-      try {
-        console.log('[Analytics Page] Periodic stats refresh...');
-        const response = await fetch("/api/analytics/stats");
-        if (response.ok) {
-          const stats = await response.json();
-          console.log('[Analytics Page] Periodic stats update received');
-          setData((prev) => {
-            if (!prev) return stats;
-            return {
-              ...stats,
-              liveVisitors: prev.liveVisitors, // Preserve live count from SSE
-            };
-          });
-        } else {
-          console.warn('[Analytics Page] Periodic stats refresh failed:', response.status);
-        }
-      } catch (err) {
-        console.error("[Analytics Page] Error refreshing stats:", err);
-      }
-    }, 30000); // Refresh every 30 seconds
-
-    return () => {
-      console.log('[Analytics Page] Cleaning up periodic refresh');
+      console.log('[Analytics Page] Cleaning up live simulation');
       clearInterval(interval);
     };
-  }, []);
+  }, [data, isClient]);
 
-  if (loading) {
+  // Show loading state during hydration
+  if (!isClient || loading) {
     return (
       <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading analytics...</p>
+            <p className="text-muted-foreground">
+              {!isClient ? 'Initializing...' : 'Loading analytics...'}
+            </p>
           </div>
         </div>
       </div>
@@ -269,6 +312,9 @@ export default function AnalyticsPage() {
             Last updated: {new Date(data.lastUpdated).toLocaleString()}
           </p>
         )}
+        <div className="mt-2 text-xs text-muted-foreground bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full inline-block">
+          📊 Demo Mode: Showing simulated analytics data
+        </div>
       </motion.div>
 
       {/* Metric Cards */}
