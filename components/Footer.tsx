@@ -46,7 +46,7 @@ export default function Footer() {
             {/* Social Media Links */}
             <div className="flex items-center gap-2 sm:gap-3">
               <motion.a
-                href="https://github.com/pradipmourya"
+                href="https://github.com/pradip1232"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
@@ -57,7 +57,7 @@ export default function Footer() {
                 <Github className="h-4 w-4 sm:h-5 sm:w-5" />
               </motion.a>
               <motion.a
-                href="https://www.linkedin.com/in/pradipmourya"
+                href="https://www.linkedin.com/in/pradipmourya-61a387218/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
@@ -68,7 +68,7 @@ export default function Footer() {
                 <Linkedin className="h-4 w-4 sm:h-5 sm:w-5" />
               </motion.a>
               <motion.a
-                href="https://twitter.com/pradipmourya_"
+                // href="https://twitter.com/pradipmourya_"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
