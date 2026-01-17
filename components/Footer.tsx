@@ -80,7 +80,7 @@ export default function Footer() {
               </motion.a>
             </div>
 
-            {/* Version/Timeline */}
+            
             <div className="flex items-center gap-2 pl-2 sm:pl-4 border-l">
               <motion.div
                 className="text-xs sm:text-sm text-muted-foreground font-mono"
