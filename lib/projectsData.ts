@@ -1,4 +1,4 @@
-import projectsJson from '@/data/projects.json'
+import projectsJson from '../data/projects.json'
 
 // Project data type definition
 export interface Project {
